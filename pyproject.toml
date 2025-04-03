@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "advent-of-code"
+version = "0.1.0"
+description = "Advent of Code solutions"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "solutions", from = "."}, {include = "utils", from = "."}]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+click = "^8.1.8"
+rich = "^13.7.1"
+requests = "^2.31.0"
+python-dotenv = "^1.0.1"
+beautifulsoup4 = "^4.13.3"
+markdownify = "^1.1.0"
+ipdb = "^0.13.13"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^4.2.0"
+
+[tool.poetry.scripts]
+aoc = "app:cli"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
