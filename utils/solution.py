@@ -83,17 +83,6 @@ class Solution:
             )
         return self._part1_implemented or self._part2_implemented
 
-    def _handle_submission(
-        self, result: int, part: int, show_time: bool, time_taken: str
-    ) -> tuple[str, str]:
-        """Handle solution submission and return appropriate status."""
-        session = os.getenv("AOC_SESSION")
-        if not session:
-            status = Text("No session cookie found", style="red")
-        else:
-            status = submit_solution(self.year, self.day, part, result, session)
-        return str(result), status
-
     def _add_row_to_table(
         self,
         table: Table,
@@ -126,11 +115,9 @@ class Solution:
                 time_taken = f"{end_time - start_time:.3f}s"
 
                 if submit:
-                    result_str, status = self._handle_submission(
-                        result, part_num, show_time, time_taken
-                    )
+                    status = submit_solution(self.year, self.day, part_num, result)
                     self._add_row_to_table(
-                        table, part_name, result_str, show_time, time_taken, status
+                        table, part_name, str(result), show_time, time_taken, status
                     )
                 else:
                     self._add_row_to_table(

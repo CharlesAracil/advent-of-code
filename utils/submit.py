@@ -4,7 +4,7 @@ from utils.aoc_client import AOCClient, SubmissionResult
 
 
 def submit_solution(
-    year: int, day: int, part: int, answer: int, session_cookie: str
+    year: int, day: int, part: int, answer: int
 ) -> Text:
     """Submit a solution to Advent of Code website and parse the response."""
 
