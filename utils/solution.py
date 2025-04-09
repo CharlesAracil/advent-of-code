@@ -1,5 +1,4 @@
 import inspect
-import os
 import re
 import time
 from pathlib import Path
@@ -23,17 +22,12 @@ class Solution:
         self.day = self._get_day_from_file(file_path)
 
         self._input_data: Optional[list[str]] = None
-        self._part1_implemented = False
-        self._part2_implemented = False
-
-        # Check implementation status
-        self._check_implementation()
 
     def _load_input_data(self, sample: bool = False) -> list[str]:
         """Load input data from file."""
         file_suffix = "_sample" if sample else ""
         input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
-        
+
         if not input_file.exists():
             if sample:
                 raise FileNotFoundError(f"Sample input file not found: {input_file}")
@@ -43,7 +37,7 @@ class Solution:
             client = AOCClient()
             input_text = client.fetch_input(self.year, self.day)
             input_file.write_text(input_text)
-        
+
         return [line for line in input_file.read_text().splitlines() if line.strip()]
 
     @property
@@ -84,11 +78,7 @@ class Solution:
 
     def _should_show_time(self, part: Optional[int]) -> bool:
         """Determine if we should show the Time column."""
-        if part is not None:
-            return (part == 1 and self._part1_implemented) or (
-                part == 2 and self._part2_implemented
-            )
-        return self._part1_implemented or self._part2_implemented
+        return True  # Always show time for execution
 
     def _add_row_to_table(
         self,
@@ -115,23 +105,22 @@ class Solution:
         """Run and display results for a specific part."""
         part_name = f"Part {part_num}"
         try:
-            if getattr(self, f"_part{part_num}_implemented"):
-                start_time = time.time()
-                result = getattr(self, f"solve_part{part_num}")()
-                end_time = time.time()
-                time_taken = f"{end_time - start_time:.3f}s"
+            start_time = time.time()
+            result = getattr(self, f"solve_part{part_num}")()
+            end_time = time.time()
+            time_taken = f"{end_time - start_time:.3f}s"
 
-                if submit:
-                    status = submit_solution(self.year, self.day, part_num, result)
-                    self._add_row_to_table(
-                        table, part_name, str(result), show_time, time_taken, status
-                    )
-                else:
-                    self._add_row_to_table(
-                        table, part_name, str(result), show_time, time_taken
-                    )
+            if submit:
+                status = submit_solution(self.year, self.day, part_num, result)
+                self._add_row_to_table(
+                    table, part_name, str(result), show_time, time_taken, status
+                )
             else:
-                self._add_row_to_table(table, part_name, "Not implemented", show_time)
+                self._add_row_to_table(
+                    table, part_name, str(result), show_time, time_taken
+                )
+        except NotImplementedError:
+            self._add_row_to_table(table, part_name, "Not implemented", show_time)
         except Exception as e:
             self._add_row_to_table(table, part_name, f"Error: {str(e)}", show_time)
 
@@ -140,50 +129,47 @@ class Solution:
     ) -> None:
         """Run the solution for the specified part(s)."""
         console = Console()
-        show_time = self._should_show_time(part)
+        show_time = True  # Always show time for execution
         table = self._create_table(show_time, submit)
 
         # Load appropriate input data
         self._input_data = self._load_input_data(sample)
 
-        if part is None or part == 1:
-            self._run_part(table, 1, show_time, submit)
+        # Determine which parts to run
+        parts_to_run = []
+        if part is None:
+            parts_to_run = [1, 2]
+        else:
+            parts_to_run = [part]
 
-        if part is None or part == 2:
-            self._run_part(table, 2, show_time, submit)
+        # Run the specified parts
+        for part_num in parts_to_run:
+            self._run_part(table, part_num, show_time, submit)
 
         console.print(table)
+
+    def _is_part_implemented(self, part_num: int) -> bool:
+        """Check if a specific part is implemented."""
+        try:
+            getattr(self, f"solve_part{part_num}")()
+            return True
+        except NotImplementedError:
+            return False
+        except Exception:
+            return True  # If we get an error other than NotImplementedError, it's implemented
 
     @property
     def status(self) -> dict:
         """Get the status of the solution implementation."""
         return {
             "file_exists": self._file_exists(),
-            "part1_implemented": self._part1_implemented,
-            "part2_implemented": self._part2_implemented,
+            "part1_implemented": self._is_part_implemented(1),
+            "part2_implemented": self._is_part_implemented(2),
         }
 
     def _file_exists(self) -> bool:
         """Check if the solution file exists."""
         return Path(f"solutions/{self.year}/day{self.day:02d}.py").exists()
-
-    def _check_implementation(self) -> None:
-        """Check if parts 1 and 2 are implemented by checking if they raise NotImplementedError."""
-        try:
-            self.solve_part1()
-            self._part1_implemented = True
-        except NotImplementedError:
-            self._part1_implemented = False
-        except Exception:
-            self._part1_implemented = True  # If we get an error other than NotImplementedError, it's implemented
-
-        try:
-            self.solve_part2()
-            self._part2_implemented = True
-        except NotImplementedError:
-            self._part2_implemented = False
-        except Exception:
-            self._part2_implemented = True  # If we get an error other than NotImplementedError, it's implemented
 
     def _get_year_from_file(self, file_path: str) -> int:
         """Extract the year from the file path."""

@@ -13,20 +13,29 @@ class DaySolution(Solution):
     def solve_part1(self) -> int:
         data = self.parse_input()
 
-        __import__("ipdb").set_trace()
-        
         matches = re.findall(r"mul\((\d{1,3}),(\d{1,3})\)", data)
-        
+
         return sum([int(a) * int(b) for a, b in matches])
 
     def solve_part2(self) -> int:
         data = self.parse_input()
 
-        pattern_mul = r"mul\((\d{1,3}),(\d{1,3})\)"
-        pattern_do = r"\(do\(\)\)"
-        pattern_dont = r"\(don't\(\)\)"
+        patterns = [
+            r"mul\((\d{1,3}),(\d{1,3})\)",
+            r"do\(\)",
+            r"don't\(\)",
+        ]
+        aggregated_pattern = r"|".join(patterns)
+        matches = re.findall(rf"({aggregated_pattern})", data)
+        
+        result = 0
+        active = True
+        for match in matches:
+            if match[0] == "do()":
+                active = True
+            elif match[0] == "don't()":
+                active = False
+            elif active:
+                result += int(match[1]) * int(match[2])
 
-        matches = re.findall("|".join([pattern_mul, pattern_do, pattern_dont]), data)
-
-        __import__("ipdb").set_trace()
-        return 0
+        return result
