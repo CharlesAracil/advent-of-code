@@ -263,10 +263,38 @@ def read(year: int, day: int, overwrite: bool) -> None:
     click.echo(f"Saved problem description for day {day} to {problem_file}")
 
 
+@click.command()
+@click.option(
+    "--year", "-y", type=int, default=get_current_year(), help="Year of the puzzle"
+)
+@click.argument("day", type=int)
+def delete(year: int, day: int) -> None:
+    """Delete all files associated with a specific day."""
+    if not 1 <= day <= 25:
+        raise click.BadParameter("Day must be between 1 and 25")
+
+    # List of files to delete
+    files_to_delete = [
+        Path(f"solutions/{year}/day{day:02d}.py"),
+        Path(f"inputs/{year}/day{day:02d}.txt"),
+        Path(f"inputs/{year}/day{day:02d}_sample.txt"),
+        Path(f"problems/{year}/day{day:02d}.md"),
+    ]
+
+    # Delete each file if it exists
+    for file in files_to_delete:
+        if file.exists():
+            file.unlink()
+            click.echo(f"Deleted {file}")
+
+    click.echo(f"All files for day {day} of {year} have been deleted.")
+
+
 cli.add_command(solve)
 cli.add_command(list)
 cli.add_command(create)
 cli.add_command(read)
+cli.add_command(delete)
 
 if __name__ == "__main__":
     cli()
