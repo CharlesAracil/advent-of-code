@@ -29,21 +29,28 @@ class Solution:
         # Check implementation status
         self._check_implementation()
 
+    def _load_input_data(self, sample: bool = False) -> list[str]:
+        """Load input data from file."""
+        file_suffix = "_sample" if sample else ""
+        input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
+        
+        if not input_file.exists():
+            if sample:
+                raise FileNotFoundError(f"Sample input file not found: {input_file}")
+            # Create inputs directory if it doesn't exist
+            input_file.parent.mkdir(parents=True, exist_ok=True)
+            # Fetch input from AOC website
+            client = AOCClient()
+            input_text = client.fetch_input(self.year, self.day)
+            input_file.write_text(input_text)
+        
+        return [line for line in input_file.read_text().splitlines() if line.strip()]
+
     @property
     def input_data(self) -> list[str]:
         """Get the input data as a list of lines."""
         if self._input_data is None:
-            input_file = Path(f"inputs/{self.year}/day{self.day:02d}.txt")
-            if not input_file.exists():
-                # Create inputs directory if it doesn't exist
-                input_file.parent.mkdir(parents=True, exist_ok=True)
-                # Fetch input from AOC website
-                client = AOCClient()
-                input_text = client.fetch_input(self.year, self.day)
-                input_file.write_text(input_text)
-            self._input_data = [
-                line for line in input_file.read_text().splitlines() if line.strip()
-            ]
+            self._input_data = self._load_input_data()
         return self._input_data
 
     def parse_input(self, input_data: list[str]) -> Any:
@@ -136,15 +143,8 @@ class Solution:
         show_time = self._should_show_time(part)
         table = self._create_table(show_time, submit)
 
-        # Reset input data if using a sample
-        if sample:
-            self._input_data = None
-            input_file = Path(f"inputs/{self.year}/day{self.day:02d}_sample.txt")
-            if not input_file.exists():
-                raise FileNotFoundError(f"Sample input file not found: {input_file}")
-            self._input_data = [
-                line for line in input_file.read_text().splitlines() if line.strip()
-            ]
+        # Load appropriate input data
+        self._input_data = self._load_input_data(sample)
 
         if part is None or part == 1:
             self._run_part(table, 1, show_time, submit)
