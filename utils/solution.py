@@ -27,17 +27,13 @@ class Solution:
         """Load input data from file."""
         file_suffix = "_sample" if sample else ""
         input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
-
+        
         if not input_file.exists():
             if sample:
                 raise FileNotFoundError(f"Sample input file not found: {input_file}")
-            # Create inputs directory if it doesn't exist
-            input_file.parent.mkdir(parents=True, exist_ok=True)
-            # Fetch input from AOC website
-            client = AOCClient()
-            input_text = client.fetch_input(self.year, self.day)
-            input_file.write_text(input_text)
-
+            # If the input file doesn't exist, we can't proceed
+            raise FileNotFoundError(f"Input file not found: {input_file}. Please run 'create' command first.")
+        
         return [line for line in input_file.read_text().splitlines() if line.strip()]
 
     @property
@@ -78,7 +74,12 @@ class Solution:
 
     def _should_show_time(self, part: Optional[int]) -> bool:
         """Determine if we should show the Time column."""
-        return True  # Always show time for execution
+        if part is None:
+            # If no specific part is requested, check if either part is implemented
+            return self._is_part_implemented(1) or self._is_part_implemented(2)
+        else:
+            # If a specific part is requested, check if that part is implemented
+            return self._is_part_implemented(part)
 
     def _add_row_to_table(
         self,
@@ -129,7 +130,7 @@ class Solution:
     ) -> None:
         """Run the solution for the specified part(s)."""
         console = Console()
-        show_time = True  # Always show time for execution
+        show_time = self._should_show_time(part)
         table = self._create_table(show_time, submit)
 
         # Load appropriate input data

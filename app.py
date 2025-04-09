@@ -195,6 +195,40 @@ class DaySolution(Solution):
     solution_file.write_text(template)
     click.echo(f"Created solution file for day {day}")
 
+    # Create the inputs directory for the year if it doesn't exist
+    inputs_dir = Path(f"inputs/{year}")
+    inputs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create an empty sample input file
+    sample_file = inputs_dir / f"day{day:02d}_sample.txt"
+    if not sample_file.exists() or overwrite:
+        sample_file.write_text("")
+        click.echo(f"Created empty sample input file for day {day}")
+
+    # Download the input file
+    input_file = inputs_dir / f"day{day:02d}.txt"
+    if not input_file.exists() or overwrite:
+        try:
+            client = AOCClient()
+            input_text = client.fetch_input(year, day)
+            input_file.write_text(input_text)
+            click.echo(f"Downloaded input file for day {day}")
+        except Exception as e:
+            click.echo(f"Failed to download input file: {str(e)}")
+
+    # Download the problem description
+    problems_dir = Path(f"problems/{year}")
+    problems_dir.mkdir(parents=True, exist_ok=True)
+    problem_file = problems_dir / f"day{day:02d}.md"
+    if not problem_file.exists() or overwrite:
+        try:
+            client = AOCClient()
+            markdown = client.read_problem(year, day)
+            problem_file.write_text(markdown)
+            click.echo(f"Downloaded problem description for day {day}")
+        except Exception as e:
+            click.echo(f"Failed to download problem description: {str(e)}")
+
 
 @click.command()
 @click.option(
