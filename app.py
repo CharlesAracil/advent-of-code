@@ -1,171 +1,70 @@
-import importlib
-from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 
-import click
-from rich.console import Console
-from rich.table import Table
+import typer
 
 from utils.aoc_client import AOCClient
+from utils.display_manager import create_report, print, print_error, print_warning
+from utils.solution import get_latest_year, solution_factory
 
-console = Console()
+app = typer.Typer(help="Advent of Code - Puzzle Solving Tool", add_completion=False)
 
-
-def get_available_days(year: int) -> list[int]:
-    """Get the list of available days for a given year."""
-    solutions_dir = Path(f"solutions/{year}")
-    if not solutions_dir.exists():
-        return []
-
-    days = []
-    for file in solutions_dir.glob("day*.py"):
-        try:
-            day = int(file.stem[3:])
-            days.append(day)
-        except ValueError:
-            continue
-    return sorted(days)
+DayArg = Annotated[int, typer.Argument(min=1, max=25, help="Day of the puzzle (1-25)")]
 
 
-def get_current_year() -> int:
-    """Get the current year for Advent of Code."""
-    now = datetime.now()
-    year = now.year
-    # If we're in December, use the current year
-    # Otherwise, use the previous year
-    return year if now.month == 12 else year - 1
-
-
-def run_solution(
-    year: int, day: int, part: int = None, submit: bool = False, sample: int = None
-) -> None:
-    """Run the solution for a given day."""
-    solution_file = Path(f"solutions/{year}/day{day:02d}.py")
-    if not solution_file.exists():
-        console.print(
-            f"[red]Error:[/red] Solution file not found for day {day} of {year}"
-        )
-        return
-
-    try:
-        # Dynamically import the solution module
-        module = importlib.import_module(f"solutions.{year}.day{day:02d}")
-
-        # Get the DaySolution class from the module
-        solution_class = getattr(module, "DaySolution")
-
-        # Create solution instance
-        solution = solution_class()
-
-        # Run the solution
-        solution.run(part, submit, sample)
-
-    except ImportError:
-        console.print(f"[red]Error:[/red] Solution not found for day {day} of {year}")
-    except Exception as e:
-        console.print(f"[red]Error:[/red] {str(e)}")
-
-
-@click.group()
-def cli():
-    """Advent of Code - Puzzle Solving Tool"""
-    pass
-
-
-@click.command()
-@click.argument("day", type=int)
-@click.option(
-    "--year",
-    "-y",
-    type=int,
-    default=get_current_year(),
-    help="Year of the puzzle (default: current year)",
-)
-@click.option(
-    "--part",
-    "-p",
-    type=click.Choice(["1", "2"]),
-    help="Specific part to solve (1 or 2)",
-)
-@click.option("--submit", is_flag=True, help="Submit the solution to Advent of Code")
-@click.option(
-    "--sample", is_flag=True, help="Use the sample input file (dayXX_sample.txt)"
-)
-def solve(year: int, day: int, part: str, submit: bool, sample: bool):
-    """Solve a specific puzzle and optionally submit the solution"""
+@app.command()
+def solve(
+    day: DayArg,
+    year: Annotated[
+        int, typer.Option("--year", "-y", help="Year of the puzzle")
+    ] = get_latest_year(),
+    part: Annotated[
+        int,
+        typer.Option(
+            "--part",
+            "-p",
+            min=1,
+            max=2,
+            help="Specific part to solve (1 or 2)",
+        ),
+    ] = None,
+    submit: Annotated[
+        bool, typer.Option("--submit", help="Submit the solution to Advent of Code")
+    ] = False,
+    sample: Annotated[
+        bool,
+        typer.Option("--sample", help="Use the sample input file (dayXX_sample.txt)"),
+    ] = False,
+):
+    # submit and sample are mutually exclusive
     if submit and sample:
-        raise click.ClickException(
-            "Cannot use both --submit and --sample options together"
+        print_error("Cannot use both --submit and --sample options together.")
+        raise typer.Exit(code=1)  # Use typer.Exit for errors
+
+    # run solution
+    try:
+        solution = solution_factory(day, year, part, sample, submit)
+        solution_report = solution.run()
+    except ImportError:
+        print_error(
+            f"Solution for {year}/{day} is not implemeted. Please run 'create' command first."
         )
-    part_num = int(part) if part else None
-    run_solution(year, day, part_num, submit, sample)
+        raise typer.Exit(code=1)
+
+    # display results
+    create_report(solution_report)
 
 
-@click.command()
-@click.option(
-    "--year",
-    "-y",
-    type=int,
-    default=get_current_year(),
-    help="Year to list (default: current year)",
-)
-def list(year: int):
-    """List available days for a given year"""
-    days = get_available_days(year)
-
-    if not days:
-        console.print(f"[yellow]No solutions available for year {year}[/yellow]")
-        return
-
-    table = Table(title=f"Available solutions for {year}")
-    table.add_column("Day", style="cyan")
-    table.add_column("Status", style="green")
-
-    for day in days:
-        solution_file = Path(f"solutions/{year}/day{day:02d}.py")
-        if not solution_file.exists():
-            table.add_row(f"Day {day:02d}", "❌ File missing")
-            continue
-
-        try:
-            module = importlib.import_module(f"solutions.{year}.day{day:02d}")
-            solution_class = getattr(module, "DaySolution")
-            solution = solution_class()
-            status = solution.status
-        except Exception:
-            table.add_row(f"Day {day:02d}", "⚠️ Error loading solution")
-            continue
-
-        if not status["part1_implemented"] and not status["part2_implemented"]:
-            status_text = "⚠️  Not implemented"
-        elif status["part1_implemented"] and status["part2_implemented"]:
-            status_text = "✅ Complete"
-        else:
-            parts = []
-            if status["part1_implemented"]:
-                parts.append("1")
-            if status["part2_implemented"]:
-                parts.append("2")
-            status_text = f"🟨 Part{'s' if len(parts) > 1 else ''} {', '.join(parts)}"
-
-        table.add_row(f"Day {day:02d}", status_text)
-
-    console.print(table)
-
-
-@click.command()
-@click.option(
-    "--year", "-y", type=int, default=get_current_year(), help="Year of the puzzle"
-)
-@click.option(
-    "--overwrite", "-o", is_flag=True, help="Overwrite the file if it already exists"
-)
-@click.argument("day", type=int)
-def create(year: int, day: int, overwrite: bool) -> None:
-    """Create a new solution file for the specified day."""
-    if not 1 <= day <= 25:
-        raise click.BadParameter("Day must be between 1 and 25")
-
+@app.command()
+def create(
+    day: DayArg,
+    year: Annotated[
+        int, typer.Option("--year", "-y", help="Year of the puzzle")
+    ] = get_latest_year(),
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", "-o", help="Overwrite existing files")
+    ] = False,
+) -> None:
     # Create the solutions directory for the year if it doesn't exist
     solutions_dir = Path(f"solutions/{year}")
     solutions_dir.mkdir(parents=True, exist_ok=True)
@@ -173,27 +72,20 @@ def create(year: int, day: int, overwrite: bool) -> None:
     # Create the solution file
     solution_file = solutions_dir / f"day{day:02d}.py"
     if solution_file.exists() and not overwrite:
-        raise click.ClickException(
-            f"Solution file for day {day} already exists. Use --overwrite to overwrite it."
+        print_error(
+            f"Solution file {solution_file} already exists. Use --overwrite to replace it."
         )
+        raise typer.Exit(code=1)
 
-    template = """from utils.solution import Solution
+    # Read the content of the solution template file
+    template_path = Path("utils/solution_template.py")
+    if not template_path.exists():
+        print_error(f"Template file {template_path} not found.")
+        raise typer.Exit(code=1)
 
-
-class DaySolution(Solution):
-    def parse_input(self) -> list:
-        return self.input_data
-
-    def solve_part1(self) -> int:
-        data = self.parse_input()  # noqa: F841
-        raise NotImplementedError("Part 1 not implemented")
-
-    def solve_part2(self) -> int:
-        data = self.parse_input()  # noqa: F841
-        raise NotImplementedError("Part 2 not implemented")
-"""
+    template = template_path.read_text()
     solution_file.write_text(template)
-    click.echo(f"Created solution file for day {day}")
+    print(f"Created solution file: {solution_file}")
 
     # Create the inputs directory for the year if it doesn't exist
     inputs_dir = Path(f"inputs/{year}")
@@ -203,18 +95,19 @@ class DaySolution(Solution):
     sample_file = inputs_dir / f"day{day:02d}_sample.txt"
     if not sample_file.exists() or overwrite:
         sample_file.write_text("")
-        click.echo(f"Created empty sample input file for day {day}")
+        print(f"Created empty sample input file: {sample_file}")
 
     # Download the input file
     input_file = inputs_dir / f"day{day:02d}.txt"
     if not input_file.exists() or overwrite:
         try:
+            print(f"Attempting to download input for {year} Day {day}...")
             client = AOCClient()
             input_text = client.fetch_input(year, day)
             input_file.write_text(input_text)
-            click.echo(f"Downloaded input file for day {day}")
+            print(f"Downloaded input file: {input_file}")
         except Exception as e:
-            click.echo(f"Failed to download input file: {str(e)}")
+            print_warning(f"Failed to download input file: {e}")
 
     # Download the problem description
     problems_dir = Path(f"problems/{year}")
@@ -222,26 +115,29 @@ class DaySolution(Solution):
     problem_file = problems_dir / f"day{day:02d}.md"
     if not problem_file.exists() or overwrite:
         try:
+            print(f"Attempting to download problem description for {year} Day {day}...")
             client = AOCClient()
             markdown = client.read_problem(year, day)
             problem_file.write_text(markdown)
-            click.echo(f"Downloaded problem description for day {day}")
+            print(f"Downloaded problem description: {problem_file}")
         except Exception as e:
-            click.echo(f"Failed to download problem description: {str(e)}")
+            print_warning(f"Failed to download problem description: {e}")
 
 
-@click.command()
-@click.option(
-    "--year", "-y", type=int, default=get_current_year(), help="Year of the puzzle"
-)
-@click.option(
-    "--overwrite", "-o", is_flag=True, help="Overwrite the file if it already exists"
-)
-@click.argument("day", type=int)
-def read(year: int, day: int, overwrite: bool) -> None:
+@app.command()
+def read(
+    day: DayArg,
+    year: Annotated[
+        int, typer.Option("--year", "-y", help="Year of the puzzle")
+    ] = get_latest_year(),
+    overwrite: Annotated[
+        bool,
+        typer.Option(
+            "--overwrite", "-o", help="Overwrite the file if it already exists"
+        ),
+    ] = False,
+) -> None:
     """Read the problem description from Advent of Code and save it as Markdown."""
-    if not 1 <= day <= 25:
-        raise click.BadParameter("Day must be between 1 and 25")
 
     # Create the problems directory for the year if it doesn't exist
     problems_dir = Path(f"problems/{year}")
@@ -250,28 +146,33 @@ def read(year: int, day: int, overwrite: bool) -> None:
     # Check if the problem file already exists
     problem_file = problems_dir / f"day{day:02d}.md"
     if problem_file.exists() and not overwrite:
-        raise click.ClickException(
-            f"Problem file for day {day} already exists. Use --overwrite to overwrite it."
+        print_error(
+            f"Problem file {problem_file} already exists. Use --overwrite to replace it."
         )
+        raise typer.Exit(code=1)
 
     # Fetch and convert problem description using AOCClient
-    client = AOCClient()
-    markdown = client.read_problem(year, day)
+    try:
+        print(f"Attempting to download problem description for {year} Day {day}...")
+        client = AOCClient()
+        markdown = client.read_problem(year, day)
 
-    # Write to file
-    problem_file.write_text(markdown)
-    click.echo(f"Saved problem description for day {day} to {problem_file}")
+        # Write to file
+        problem_file.write_text(markdown)
+        print(f"Saved problem description for day {day} to {problem_file}")
+    except Exception as e:
+        print_error(f"Failed to download and save problem description: {e}")
+        raise typer.Exit(code=1)
 
 
-@click.command()
-@click.option(
-    "--year", "-y", type=int, default=get_current_year(), help="Year of the puzzle"
-)
-@click.argument("day", type=int)
-def delete(year: int, day: int) -> None:
-    """Delete all files associated with a specific day."""
-    if not 1 <= day <= 25:
-        raise click.BadParameter("Day must be between 1 and 25")
+@app.command()
+def delete(
+    day: DayArg,
+    year: Annotated[
+        int, typer.Option("--year", "-y", help="Year of the puzzle")
+    ] = get_latest_year(),
+) -> None:
+    """Delete all files related to a specific day (solution, inputs, problem)."""
 
     # List of files to delete
     files_to_delete = [
@@ -281,20 +182,24 @@ def delete(year: int, day: int) -> None:
         Path(f"problems/{year}/day{day:02d}.md"),
     ]
 
+    deleted_count = 0
     # Delete each file if it exists
     for file in files_to_delete:
         if file.exists():
-            file.unlink()
-            click.echo(f"Deleted {file}")
+            try:
+                file.unlink()
+                print(f"Deleted {file}")
+                deleted_count += 1
+            except OSError as e:
+                print_error(f"Error deleting {file}: {e}")
+        else:
+            print(f"File not found, skipping: {file}")
 
-    click.echo(f"All files for day {day} of {year} have been deleted.")
+    if deleted_count > 0:
+        print(f"Finished deleting files for day {day} of {year}.")
+    else:
+        print(f"No files found to delete for day {day} of {year}.")
 
-
-cli.add_command(solve)
-cli.add_command(list)
-cli.add_command(create)
-cli.add_command(read)
-cli.add_command(delete)
 
 if __name__ == "__main__":
-    cli()
+    app()

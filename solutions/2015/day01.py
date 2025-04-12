@@ -9,7 +9,6 @@ class DaySolution(Solution):
         return self.input_data[0]
 
     def solve_part1(self) -> int:
-        print("read 1")
         data = self.parse_input()  # noqa: F841
         floor = 0
         for parenthesis in data:
@@ -21,7 +20,6 @@ class DaySolution(Solution):
         return floor
 
     def solve_part2(self) -> int:
-        print("read 2")
         data = self.parse_input()  # noqa: F841
         floor = 0
         for position, parenthesis in enumerate(data):

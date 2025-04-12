@@ -40,3 +40,6 @@ inputs/*/day*.txt
 
 # Poetry
 poetry.lock
+
+# customs
+.trash

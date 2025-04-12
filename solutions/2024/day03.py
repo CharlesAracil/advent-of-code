@@ -27,7 +27,7 @@ class DaySolution(Solution):
         ]
         aggregated_pattern = r"|".join(patterns)
         matches = re.findall(rf"({aggregated_pattern})", data)
-        
+
         result = 0
         active = True
         for match in matches:

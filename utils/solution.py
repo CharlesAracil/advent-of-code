@@ -1,47 +1,84 @@
-import inspect
-import re
+import importlib
 import time
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-from rich.console import Console
-from rich.table import Table
-from rich.text import Text
+from utils.aoc_client import AOCClient, SubmissionResult
 
-from utils.aoc_client import AOCClient
-from utils.submit import submit_solution
+
+def solution_factory(
+    day: int, year: int, part: int, sample: bool, submit: bool
+) -> "Solution":
+    module_path = f"solutions.{year}.day{day:02d}"
+
+    try:
+        module = importlib.import_module(module_path)
+        DaySolution = getattr(module, "DaySolution")
+    except ModuleNotFoundError as e:
+        raise ImportError(f"Module for {module_path} not found") from e
+    except AttributeError as e:
+        raise ImportError(f"No 'DaySolution' class in {module_path}") from e
+
+    return DaySolution(day, year, part, sample, submit)
+
+
+@dataclass
+class SolutionPartReport:
+    part: int
+    result: Optional[Union[int]] = None
+    time_taken: Optional[int] = None
+    submission: Optional[SubmissionResult] = None
+    implemented: bool = True
+    error: Optional[Exception] = None
+
+
+@dataclass
+class SolutionReport:
+    submit: Optional[bool] = False
+    part1: Optional[SolutionPartReport] = None
+    part2: Optional[SolutionPartReport] = None
+
+    def __setitem__(self, key: str, value: SolutionPartReport):
+        if key == 1:
+            self.part1 = value
+        elif key == 2:
+            self.part2 = value
+        else:
+            raise KeyError(f"Invalid key: {key}")
+
+
+class InputParser(Enum):
+    ONE_LINE = "one line"
+    MULTIPLE_LINES = "multiple lines"
+
+
+def get_latest_year() -> int:
+    now = datetime.now()
+    year = now.year
+    return year if now.month == 12 else year - 1
 
 
 class Solution:
-    def __init__(self):
-        # Get the file path of the calling module
-        file_path = inspect.getmodule(self).__file__
+    INPUT_LOADING_METHOD = InputParser.MULTIPLE_LINES
 
-        # Extract year and day from file path
-        self.year = self._get_year_from_file(file_path)
-        self.day = self._get_day_from_file(file_path)
+    def __init__(
+        self,
+        day: int,
+        year: Optional[int] = None,
+        part: Optional[int] = None,
+        sample: Optional[bool] = False,
+        submit: Optional[bool] = False,
+    ):
+        self.day = day
+        self.year = year or get_latest_year()
+        self.parts = [part] if part else [1, 2]
+        self.input_data = self._load_input_data(sample)
+        self.submit = submit
 
-        self._input_data: Optional[list[str]] = None
-
-    def _load_input_data(self, sample: bool = False) -> list[str]:
-        """Load input data from file."""
-        file_suffix = "_sample" if sample else ""
-        input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
-        
-        if not input_file.exists():
-            if sample:
-                raise FileNotFoundError(f"Sample input file not found: {input_file}")
-            # If the input file doesn't exist, we can't proceed
-            raise FileNotFoundError(f"Input file not found: {input_file}. Please run 'create' command first.")
-        
-        return [line for line in input_file.read_text().splitlines() if line.strip()]
-
-    @property
-    def input_data(self) -> list[str]:
-        """Get the input data as a list of lines."""
-        if self._input_data is None:
-            self._input_data = self._load_input_data()
-        return self._input_data
+    # Methods that should be implemented by subclasses
 
     def parse_input(self, input_data: list[str]) -> Any:
         """Parse the input data into a format suitable for solving the puzzle.
@@ -58,130 +95,50 @@ class Solution:
         """Solve part 2 of the puzzle."""
         raise NotImplementedError("Part 2 not implemented")
 
-    def _create_table(self, show_time: bool, submit: bool) -> Table:
-        """Create and configure the results table."""
-        table = Table(title=f"Solution for Day {self.day}, Year {self.year}")
-        table.add_column("Part", style="cyan")
-        table.add_column("Result", style="green")
+    # ---
 
-        if show_time:
-            table.add_column("Time", style="magenta")
+    def _load_input_data(self, sample: bool = False) -> list[str] | str:
+        file_suffix = "_sample" if sample else ""
+        input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
 
-        if submit and show_time:
-            table.add_column("Submit Status", style="yellow")
+        if not input_file.exists():
+            raise FileNotFoundError(
+                f"Input file not found: {input_file}. Please run 'create' command first."
+            )
 
-        return table
+        match self.INPUT_LOADING_METHOD:
+            case InputParser.ONE_LINE:
+                return input_file.read_text().strip()
+            case InputParser.MULTIPLE_LINES:
+                return [
+                    line for line in input_file.read_text().splitlines() if line.strip()
+                ]
 
-    def _should_show_time(self, part: Optional[int]) -> bool:
-        """Determine if we should show the Time column."""
-        if part is None:
-            # If no specific part is requested, check if either part is implemented
-            return self._is_part_implemented(1) or self._is_part_implemented(2)
-        else:
-            # If a specific part is requested, check if that part is implemented
-            return self._is_part_implemented(part)
+    def _run_part(self, part: int, submit: bool) -> SolutionPartReport:
+        status = SolutionPartReport(part)
 
-    def _add_row_to_table(
-        self,
-        table: Table,
-        part: str,
-        result: str,
-        show_time: bool,
-        time_taken: str = "",
-        status: Optional[Text] = None,
-    ) -> None:
-        """Add a row to the results table with appropriate columns."""
-        if show_time and status is not None:
-            table.add_row(part, result, time_taken, status)
-        elif show_time:
-            table.add_row(part, result, time_taken)
-        elif status is not None:
-            table.add_row(part, result, status)
-        else:
-            table.add_row(part, result)
-
-    def _run_part(
-        self, table: Table, part_num: int, show_time: bool, submit: bool
-    ) -> None:
-        """Run and display results for a specific part."""
-        part_name = f"Part {part_num}"
         try:
             start_time = time.time()
-            result = getattr(self, f"solve_part{part_num}")()
+            status.result = getattr(self, f"solve_part{part}")()
             end_time = time.time()
-            time_taken = f"{end_time - start_time:.3f}s"
+            status.time_taken = end_time - start_time
 
             if submit:
-                status = submit_solution(self.year, self.day, part_num, result)
-                self._add_row_to_table(
-                    table, part_name, str(result), show_time, time_taken, status
-                )
-            else:
-                self._add_row_to_table(
-                    table, part_name, str(result), show_time, time_taken
-                )
+                status.submission = self.submit_solution(part, status.result)
         except NotImplementedError:
-            self._add_row_to_table(table, part_name, "Not implemented", show_time)
-        except Exception as e:
-            self._add_row_to_table(table, part_name, f"Error: {str(e)}", show_time)
+            status.implemented = False
 
-    def run(
-        self, part: Optional[int] = None, submit: bool = False, sample: bool = False
-    ) -> None:
-        """Run the solution for the specified part(s)."""
-        console = Console()
-        show_time = self._should_show_time(part)
-        table = self._create_table(show_time, submit)
+        return status
 
-        # Load appropriate input data
-        self._input_data = self._load_input_data(sample)
+    def run(self) -> SolutionReport:
+        solution_report = SolutionReport(submit=self.submit)
+        for part in self.parts:
+            solution_report[part] = self._run_part(part, self.submit)
 
-        # Determine which parts to run
-        parts_to_run = []
-        if part is None:
-            parts_to_run = [1, 2]
-        else:
-            parts_to_run = [part]
+        return solution_report
 
-        # Run the specified parts
-        for part_num in parts_to_run:
-            self._run_part(table, part_num, show_time, submit)
+    def submit_solution(self, part: int, answer: int) -> SubmissionResult:
+        client = AOCClient()
+        result = client.submit_answer(self.year, self.day, part, answer)
 
-        console.print(table)
-
-    def _is_part_implemented(self, part_num: int) -> bool:
-        """Check if a specific part is implemented."""
-        try:
-            getattr(self, f"solve_part{part_num}")()
-            return True
-        except NotImplementedError:
-            return False
-        except Exception:
-            return True  # If we get an error other than NotImplementedError, it's implemented
-
-    @property
-    def status(self) -> dict:
-        """Get the status of the solution implementation."""
-        return {
-            "file_exists": self._file_exists(),
-            "part1_implemented": self._is_part_implemented(1),
-            "part2_implemented": self._is_part_implemented(2),
-        }
-
-    def _file_exists(self) -> bool:
-        """Check if the solution file exists."""
-        return Path(f"solutions/{self.year}/day{self.day:02d}.py").exists()
-
-    def _get_year_from_file(self, file_path: str) -> int:
-        """Extract the year from the file path."""
-        match = re.search(r"solutions/(\d{4})/", file_path)
-        if not match:
-            raise ValueError("File must be in a solutions/YYYY/ directory")
-        return int(match.group(1))
-
-    def _get_day_from_file(self, file_path: str) -> int:
-        """Extract the day number from the file path."""
-        match = re.search(r"day(\d+)\.py$", file_path)
-        if not match:
-            raise ValueError("File must follow the format 'dayXX.py'")
-        return int(match.group(1))
+        return result
