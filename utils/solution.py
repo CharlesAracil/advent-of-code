@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from utils.aoc_client import AOCClient, SubmissionResult
 
@@ -80,7 +80,7 @@ class Solution:
 
     # Methods that should be implemented by subclasses
 
-    def parse_input(self, input_data: list[str]) -> Any:
+    def parse_input(self) -> str | list[str]:
         """Parse the input data into a format suitable for solving the puzzle.
 
         This method must be implemented by each solution class.

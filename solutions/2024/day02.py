@@ -2,7 +2,7 @@ from utils.solution import Solution
 
 
 class DaySolution(Solution):
-    def parse_input(self) -> list:
+    def parse_input(self) -> str | list[str]:
         return [[int(x) for x in line.split()] for line in self.input_data]
 
     def is_safe(self, report) -> bool:
