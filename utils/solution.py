@@ -62,7 +62,7 @@ def get_latest_year() -> int:
 
 
 class Solution:
-    INPUT_LOADING_METHOD = InputParser.MULTIPLE_LINES
+    INPUT_PARSER = InputParser.MULTIPLE_LINES
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class Solution:
                 f"Input file not found: {input_file}. Please run 'create' command first."
             )
 
-        match self.INPUT_LOADING_METHOD:
+        match self.INPUT_PARSER:
             case InputParser.ONE_LINE:
                 return input_file.read_text().strip()
             case InputParser.MULTIPLE_LINES:

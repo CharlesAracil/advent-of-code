@@ -1,12 +1,14 @@
 # note: we needed to parse data because input is a oneliner and our framework always use splitlines
 # we could parametrize the class with the kind of input we have
 
-from utils.solution import Solution
+from utils.solution import InputParser, Solution
 
 
 class DaySolution(Solution):
+    INPUT_PARSER = InputParser.ONE_LINE
+
     def parse_input(self) -> list:
-        return self.input_data[0]
+        return self.input_data
 
     def solve_part1(self) -> int:
         data = self.parse_input()  # noqa: F841

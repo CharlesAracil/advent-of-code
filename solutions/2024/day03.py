@@ -3,12 +3,14 @@
 
 import re
 
-from utils.solution import Solution
+from utils.solution import InputParser, Solution
 
 
 class DaySolution(Solution):
+    INPUT_PARSER = InputParser.ONE_LINE
+
     def parse_input(self) -> str:
-        return "".join(self.input_data)
+        return self.input_data
 
     def solve_part1(self) -> int:
         data = self.parse_input()
