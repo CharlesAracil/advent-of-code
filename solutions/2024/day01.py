@@ -49,3 +49,16 @@ class DaySolution(Solution):
         similarity_score = sum(num * right_counts[num] for num in left_list)
 
         return similarity_score
+
+
+class TestDaySolutionPart:
+    SAMPLE = """
+        3   4
+        4   3
+        2   5
+        1   3
+        3   9
+        3   3
+    """
+
+    TEST_CASES = {SAMPLE: 11}

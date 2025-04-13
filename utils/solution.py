@@ -31,7 +31,6 @@ class SolutionPartReport:
     result: Optional[Union[int]] = None
     time_taken: Optional[int] = None
     submission: Optional[SubmissionResult] = None
-    implemented: bool = True
     error: Optional[Exception] = None
 
 
@@ -97,6 +96,9 @@ class Solution:
 
     # ---
 
+    def callback(self, line: str) -> str:
+        return line
+
     def _load_input_data(self, sample: bool = False) -> list[str] | str:
         file_suffix = "_sample" if sample else ""
         input_file = Path(f"inputs/{self.year}/day{self.day:02d}{file_suffix}.txt")
@@ -111,24 +113,28 @@ class Solution:
                 return input_file.read_text().strip()
             case InputParser.MULTIPLE_LINES:
                 return [
-                    line for line in input_file.read_text().splitlines() if line.strip()
+                    self.callback(line)
+                    for line in input_file.read_text().splitlines()
+                    if line.strip()
                 ]
 
     def _run_part(self, part: int, submit: bool) -> SolutionPartReport:
-        status = SolutionPartReport(part)
+        solution_part_report = SolutionPartReport(part)
 
         try:
             start_time = time.time()
-            status.result = getattr(self, f"solve_part{part}")()
+            solution_part_report.result = getattr(self, f"solve_part{part}")()
             end_time = time.time()
-            status.time_taken = end_time - start_time
+            solution_part_report.time_taken = end_time - start_time
 
             if submit:
-                status.submission = self.submit_solution(part, status.result)
+                solution_part_report.submission = self.submit_solution(
+                    part, solution_part_report.result
+                )
         except NotImplementedError:
-            status.implemented = False
+            return None
 
-        return status
+        return solution_part_report
 
     def run(self) -> SolutionReport:
         solution_report = SolutionReport(submit=self.submit)

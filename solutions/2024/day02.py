@@ -39,3 +39,10 @@ class DaySolution(Solution):
                     break
 
         return safe_count
+
+
+class TestDaySolutionPart:
+    TEST_CASES = {
+        "2x3x4": 58,
+        "1x1x10": 43,
+    }

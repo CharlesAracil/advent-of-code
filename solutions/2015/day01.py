@@ -31,3 +31,14 @@ class DaySolution(Solution):
                 return position + 1
 
         raise ValueError("Santa never entered the basement!")
+
+
+class TestDaySolutionPart:
+    TEST_CASES = {
+        "(())": 0,
+        "()()": 0,
+        "(((": 3,
+        "(()(()(": 3,
+        "()))": -1,
+        ")))": -3,
+    }
