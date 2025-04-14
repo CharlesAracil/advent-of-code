@@ -1,10 +1,11 @@
+import contextlib
 import importlib
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from utils.aoc_client import AOCClient, SubmissionResult
 
@@ -37,6 +38,8 @@ class SolutionPartReport:
 @dataclass
 class SolutionReport:
     submit: Optional[bool] = False
+    day: Optional[int] = None
+    year: Optional[int] = None
     part1: Optional[SolutionPartReport] = None
     part2: Optional[SolutionPartReport] = None
 
@@ -52,6 +55,7 @@ class SolutionReport:
 class InputParser(Enum):
     ONE_LINE = "one line"
     MULTIPLE_LINES = "multiple lines"
+    N_COLUMNS = "n columns"  # you must specify the types of the columns in COLUMN_TYPES
 
 
 def get_latest_year() -> int:
@@ -62,6 +66,7 @@ def get_latest_year() -> int:
 
 class Solution:
     INPUT_PARSER = InputParser.MULTIPLE_LINES
+    COLUMN_TYPES = []  # when using N_COLUMNS parser
 
     def __init__(
         self,
@@ -74,30 +79,29 @@ class Solution:
         self.day = day
         self.year = year or get_latest_year()
         self.parts = [part] if part else [1, 2]
-        self.input_data = self._load_input_data(sample)
+        self.sample = sample
         self.submit = submit
+        self.input_data = self._load_input_data(
+            sample
+        )  # note: input data should be loaded at runtime because of possible sample change between part 1 and part 2
 
     # Methods that should be implemented by subclasses
 
-    def parse_input(self) -> str | list[str]:
-        """Parse the input data into a format suitable for solving the puzzle.
+    def parse_data(self, data: Any) -> Any:
+        return data
 
-        This method must be implemented by each solution class.
-        """
-        raise NotImplementedError("parse_input must be implemented")
+    def parse_line(self, line: str) -> str:
+        return line
 
-    def solve_part1(self) -> int:
+    def solve_part1(self, data: Any) -> int:
         """Solve part 1 of the puzzle."""
         raise NotImplementedError("Part 1 not implemented")
 
-    def solve_part2(self) -> int:
+    def solve_part2(self, data: Any) -> int:
         """Solve part 2 of the puzzle."""
         raise NotImplementedError("Part 2 not implemented")
 
     # ---
-
-    def callback(self, line: str) -> str:
-        return line
 
     def _load_input_data(self, sample: bool = False) -> list[str] | str:
         file_suffix = "_sample" if sample else ""
@@ -110,20 +114,40 @@ class Solution:
 
         match self.INPUT_PARSER:
             case InputParser.ONE_LINE:
-                return input_file.read_text().strip()
+                data = self.parse_line(input_file.read_text().strip())
             case InputParser.MULTIPLE_LINES:
-                return [
-                    self.callback(line)
+                data = [
+                    self.parse_line(line)
                     for line in input_file.read_text().splitlines()
                     if line.strip()
                 ]
+            case InputParser.N_COLUMNS:
+                columns = [[] for _ in self.COLUMN_TYPES]
+                for line in input_file.read_text().splitlines():
+                    if not line.strip():
+                        continue
+                    values = line.split()
+                    if len(values) != len(self.COLUMN_TYPES):
+                        raise ValueError(
+                            f"Expected {len(self.COLUMN_TYPES)} columns, got {len(values)}"
+                        )
+                    for i, (value, type_) in enumerate(zip(values, self.COLUMN_TYPES)):
+                        columns[i].append(type_(value))
+                data = columns
+
+        with contextlib.suppress(NotImplementedError):
+            data = self.parse_data(data)
+
+        return data
 
     def _run_part(self, part: int, submit: bool) -> SolutionPartReport:
         solution_part_report = SolutionPartReport(part)
 
         try:
             start_time = time.time()
-            solution_part_report.result = getattr(self, f"solve_part{part}")()
+            solution_part_report.result = getattr(self, f"solve_part{part}")(
+                self.input_data
+            )
             end_time = time.time()
             solution_part_report.time_taken = end_time - start_time
 
@@ -137,7 +161,9 @@ class Solution:
         return solution_part_report
 
     def run(self) -> SolutionReport:
-        solution_report = SolutionReport(submit=self.submit)
+        solution_report = SolutionReport(
+            day=self.day, year=self.year, submit=self.submit
+        )
         for part in self.parts:
             solution_report[part] = self._run_part(part, self.submit)
 

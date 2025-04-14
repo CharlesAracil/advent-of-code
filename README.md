@@ -131,27 +131,27 @@ Each solution file should follow this format:
 from utils.solution import Solution
 
 class DaySolution(Solution):
-    def parse_input(self) -> str | list[str]:
+    def parse_data(self) -> str | list[str]:
         return self.input_data
 
     def solve_part1(self) -> int:
-        data = self.parse_input()
+        data = self.parse_data()
         # Solution for part 1
         raise NotImplementedError("Part 1 not implemented")
 
     def solve_part2(self) -> int:
-        data = self.parse_input()
+        data = self.parse_data()
         # Solution for part 2
         raise NotImplementedError("Part 2 not implemented")
 ```
 
 ## Dynamic Input Parsing
 
-The `parse_input` method in each solution class has been enhanced to support dynamic input parsing. It can now handle both single-line and multi-line inputs, returning either a `str` or a `list[str]` depending on the input format. This flexibility allows for easier handling of diverse input formats across different puzzles.
+The `parse_data` method in each solution class has been enhanced to support dynamic input parsing. It can now handle both single-line and multi-line inputs, returning either a `str` or a `list[str]` depending on the input format. This flexibility allows for easier handling of diverse input formats across different puzzles.
 
 ## Key Features
 
-- **Dynamic Input Parsing**: The `parse_input` method now supports both single-line and multi-line inputs, returning `str | list[str]`.
+- **Dynamic Input Parsing**: The `parse_data` method now supports both single-line and multi-line inputs, returning `str | list[str]`.
 - **Template-Based Solution Creation**: New solution files are created using a customizable template located at `utils/solution_template.py`.
 - **Comprehensive CLI**: Manage solutions, inputs, and problem descriptions directly from the command line.
 - **Error Handling**: Clear error messages and warnings for missing files or invalid operations.

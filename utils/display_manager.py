@@ -27,8 +27,8 @@ def print_error(message: str) -> None:
     console.print(f"[red]Error:[/red] {message}")
 
 
-def create_table(submit: bool) -> Table:
-    table = Table(title="Solution")
+def create_table(day: int, year: int, submit: bool) -> Table:
+    table = Table(title=f"Solution for day {day}, year {year}")
     table.add_column("Part", style="cyan")
     table.add_column("Result", style="green")
     table.add_column("Time", style="magenta")
@@ -40,7 +40,9 @@ def create_table(submit: bool) -> Table:
 
 
 def create_report(solution_report: SolutionReport) -> None:
-    table = create_table(solution_report.submit)
+    table = create_table(
+        solution_report.day, solution_report.year, solution_report.submit
+    )
 
     for solution_part_report in [solution_report.part1, solution_report.part2]:
         if not solution_part_report:

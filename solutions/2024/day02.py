@@ -1,9 +1,11 @@
+from typing import Any
+
 from utils.solution import Solution
 
 
 class DaySolution(Solution):
-    def parse_input(self) -> str | list[str]:
-        return [[int(x) for x in line.split()] for line in self.input_data]
+    def parse_data(self, data: str | list[str]) -> str | list[str]:
+        return [[int(x) for x in line.split()] for line in data]
 
     def is_safe(self, report) -> bool:
         deltas = [a - b for a, b in zip(report, report[1:])]
@@ -14,16 +16,14 @@ class DaySolution(Solution):
 
         return is_monotonic and is_stable
 
-    def solve_part1(self) -> int:
-        data = self.parse_input()
+    def solve_part1(self, data: Any) -> int:
         safe_count = 0
         for report in data:
             if self.is_safe(report):
                 safe_count += 1
         return safe_count
 
-    def solve_part2(self) -> int:
-        data = self.parse_input()
+    def solve_part2(self, data: Any) -> int:
         safe_count = 0
         for report in data:
             # Check if report is already safe without removing any level
@@ -39,10 +39,3 @@ class DaySolution(Solution):
                     break
 
         return safe_count
-
-
-class TestDaySolutionPart:
-    TEST_CASES = {
-        "2x3x4": 58,
-        "1x1x10": 43,
-    }

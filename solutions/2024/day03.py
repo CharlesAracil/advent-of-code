@@ -2,6 +2,7 @@
 # however sample from part 2 resulted in the same input in part 1, so we kept this one.
 
 import re
+from typing import Any
 
 from utils.solution import InputParser, Solution
 
@@ -9,19 +10,15 @@ from utils.solution import InputParser, Solution
 class DaySolution(Solution):
     INPUT_PARSER = InputParser.ONE_LINE
 
-    def parse_input(self) -> str:
+    def parse_data(self) -> str:
         return self.input_data
 
-    def solve_part1(self) -> int:
-        data = self.parse_input()
-
+    def solve_part1(self, data: Any) -> int:
         matches = re.findall(r"mul\((\d{1,3}),(\d{1,3})\)", data)
 
         return sum([int(a) * int(b) for a, b in matches])
 
-    def solve_part2(self) -> int:
-        data = self.parse_input()
-
+    def solve_part2(self, data: Any) -> int:
         patterns = [
             r"mul\((\d{1,3}),(\d{1,3})\)",
             r"do\(\)",
@@ -41,10 +38,3 @@ class DaySolution(Solution):
                 result += int(match[1]) * int(match[2])
 
         return result
-
-
-class TestDaySolutionPart:
-    TEST_CASES = {
-        "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))": 161,
-        "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))": 48,
-    }
